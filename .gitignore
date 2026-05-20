@@ -1,0 +1,63 @@
+# Secrets and local env
+.env
+.env.*
+!.env.example
+переменные.txt
+INIT PROMPT*.txt
+
+# Databases and sessions
+*.db
+*.db-wal
+*.db-shm
+*.session
+*.session-journal
+data/
+backend/data/
+
+# Telegram export (local data)
+Export/
+
+# Java / Gradle
+backend/build/
+backend/target/
+backend/.gradle/
+*.iml
+*.class
+*.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temp
+*.log
+import-test.log
+tmp/
+temp/
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Docker local overrides
+docker-compose.override.yml
+
+# Cursor / local tooling
+.cursor/
+agent-transcripts/

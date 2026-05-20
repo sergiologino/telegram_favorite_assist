@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: telegram-favorites-assist
+  config:
+    import: optional:file:../.env[.properties],optional:file:.env[.properties],optional:file:/app/.env[.properties]
+  datasource:
+    url: jdbc:sqlite:${DATABASE_PATH:../data/favorites.db}
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  timezone: ${APP_TIMEZONE:Europe/Moscow}
+  project-root: ${APP_PROJECT_ROOT:..}
+  sync:
+    cron: ${SYNC_CRON:0 0 8,20 * * *}
+    process-batch-size: ${SYNC_PROCESS_BATCH_SIZE:50}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:gpt-4o-mini}
+    enabled: ${OPENAI_ENABLED:true}
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    enabled: ${TELEGRAM_BOT_ENABLED:true}
+    user-api:
+      enabled: ${TELEGRAM_USER_API_ENABLED:true}
+      api-id: ${TELEGRAM_API_ID:}
+      api-hash: ${TELEGRAM_API_HASH:}
+      session-path: ${TELEGRAM_SESSION_PATH:./data/telegram.session}
+      python-executable: ${PYTHON_EXECUTABLE:python}
+      sync-script: ${TELEGRAM_USER_SYNC_SCRIPT:scripts/sync_saved_messages.py}
+      message-limit: ${TELEGRAM_USER_MESSAGE_LIMIT:500}
+  github:
+    token: ${GITHUB_TOKEN:}
+  site-url: ${SITE_URL:http://localhost:8080}
+  site-name: ${SITE_NAME:Finds — полезные сервисы и приложения}
+
+logging:
+  level:
+    com.altacod.favorites: INFO

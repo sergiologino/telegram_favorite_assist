@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /data/favorites.db
+      APP_PROJECT_ROOT: /app
+      SERVER_PORT: 8080
+      TELEGRAM_USER_API_ENABLED: "false"
+    volumes:
+      - favorites-data:/data
+    restart: unless-stopped
+
+volumes:
+  favorites-data:

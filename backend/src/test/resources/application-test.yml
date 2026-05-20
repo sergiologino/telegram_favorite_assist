@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:mem:testdb
+  jpa:
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+
+app:
+  project-root: ..
+  openai:
+    enabled: false
+  telegram:
+    enabled: false
+    user-api:
+      enabled: false
