@@ -1,72 +1,83 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { api, Category, ServiceItem } from '../api/client';
+import Pagination from '../components/Pagination';
 import ServiceCard from '../components/ServiceCard';
 import TagCloud from '../components/TagCloud';
 import { useQueueProcessing } from '../hooks/useQueueProcessing';
 import PageSeo from '../seo/PageSeo';
 import { SITE_DESCRIPTION, SITE_NAME } from '../seo/siteConfig';
 import { buildFindsFaqJsonLd, buildWebPageJsonLd, buildWebsiteJsonLd } from '../seo/structuredData';
-import {
-  extractAvailableTags,
-  GITHUB_CATEGORY_VALUE,
-  matchesSelectedTags,
-  parseCategoryFilter,
-} from '../utils/catalogFilters';
+import { GITHUB_CATEGORY_VALUE, parseCategoryFilter } from '../utils/catalogFilters';
+
+const PAGE_SIZE = 20;
 
 export default function CatalogPage() {
-  const [baseServices, setBaseServices] = useState<ServiceItem[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { stats, batchVersion } = useQueueProcessing();
 
-  const availableTags = useMemo(() => extractAvailableTags(baseServices), [baseServices]);
-  const displayedServices = useMemo(
-    () => baseServices.filter((service) => matchesSelectedTags(service, selectedTags)),
-    [baseServices, selectedTags],
-  );
-
-  async function loadPrimaryFilters(
+  async function loadCatalog(
+    nextPage = page,
     params?: {
       q?: string;
       categoryFilter?: string;
       from?: string;
       to?: string;
+      tags?: Set<string>;
     },
-    options?: { silent?: boolean; keepTags?: boolean },
+    options?: { silent?: boolean; scrollToTop?: boolean },
   ) {
     const nextQuery = params?.q ?? query;
     const nextCategoryFilter = params?.categoryFilter ?? categoryFilter;
     const nextFrom = params?.from ?? from;
     const nextTo = params?.to ?? to;
+    const nextTags = params?.tags ?? selectedTags;
 
     if (!options?.silent) {
       setLoading(true);
     }
     setError(null);
-    if (!options?.keepTags) {
-      setSelectedTags(new Set());
-    }
 
     setQuery(nextQuery);
     setCategoryFilter(nextCategoryFilter);
     setFrom(nextFrom);
     setTo(nextTo);
+    if (params?.tags !== undefined) {
+      setSelectedTags(new Set(nextTags));
+    }
+    setPage(nextPage);
 
     const { category, hasRepo } = parseCategoryFilter(nextCategoryFilter);
+    const catalogFilters = { q: nextQuery, category, from: nextFrom, to: nextTo, hasRepo };
+    const tagsParam = nextTags.size > 0 ? [...nextTags].join(',') : undefined;
 
     try {
-      const [page, categoryList] = await Promise.all([
-        api.getServices({ q: nextQuery, category, from: nextFrom, to: nextTo, hasRepo, size: 1000 }),
+      const [servicesPage, categoryList, tags] = await Promise.all([
+        api.getServices({ ...catalogFilters, tags: tagsParam, page: nextPage, size: PAGE_SIZE }),
         api.getCategories(),
+        api.getTags(catalogFilters),
       ]);
-      setBaseServices(page.items);
+
+      setServices(servicesPage.items);
+      setTotalPages(servicesPage.totalPages);
+      setTotalElements(servicesPage.totalElements);
       setCategories(categoryList);
+      setAvailableTags(tags);
+
+      if (options?.scrollToTop) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Ошибка загрузки');
     } finally {
@@ -77,39 +88,41 @@ export default function CatalogPage() {
   }
 
   useEffect(() => {
-    loadPrimaryFilters({ q: '', categoryFilter: '', from: '', to: '' });
+    loadCatalog(0, { q: '', categoryFilter: '', from: '', to: '', tags: new Set() });
   }, []);
 
   useEffect(() => {
     if (batchVersion === 0) {
       return;
     }
-    loadPrimaryFilters(undefined, { silent: true, keepTags: true });
+    loadCatalog(page, undefined, { silent: true });
   }, [batchVersion]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    loadPrimaryFilters();
+    loadCatalog(0);
   }
 
   function handleCategoryChange(value: string) {
-    loadPrimaryFilters({ categoryFilter: value });
+    loadCatalog(0, { categoryFilter: value });
   }
 
   function handleResetFilters() {
-    loadPrimaryFilters({ q: '', categoryFilter: '', from: '', to: '' });
+    loadCatalog(0, { q: '', categoryFilter: '', from: '', to: '', tags: new Set() });
   }
 
   function toggleTag(tag: string) {
-    setSelectedTags((current) => {
-      const next = new Set(current);
-      if (next.has(tag)) {
-        next.delete(tag);
-      } else {
-        next.add(tag);
-      }
-      return next;
-    });
+    const nextTags = new Set(selectedTags);
+    if (nextTags.has(tag)) {
+      nextTags.delete(tag);
+    } else {
+      nextTags.add(tag);
+    }
+    loadCatalog(0, { tags: nextTags });
+  }
+
+  function handlePageChange(nextPage: number) {
+    loadCatalog(nextPage, undefined, { scrollToTop: true });
   }
 
   const pendingCount = stats?.pendingPosts ?? 0;
@@ -163,33 +176,33 @@ export default function CatalogPage() {
           Поиск и фильтры
         </h2>
         <form className="filters" onSubmit={handleSubmit}>
-        <input
-          placeholder="Поиск по названию, описанию, ссылкам..."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <select value={categoryFilter} onChange={(event) => handleCategoryChange(event.target.value)}>
-          <option value="">Все категории</option>
-          <option value={GITHUB_CATEGORY_VALUE}>GitHub ({githubCount})</option>
-          {categories.map((item) => (
-            <option key={item.slug} value={item.slug}>
-              {item.name} ({item.count})
-            </option>
-          ))}
-        </select>
-        <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-        <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-        <button className="primary" type="submit">
-          Найти
-        </button>
-        <button
-          className="secondary"
-          type="button"
-          onClick={handleResetFilters}
-          disabled={loading || !hasActiveFilters}
-        >
-          Сбросить
-        </button>
+          <input
+            placeholder="Поиск по названию, описанию, ссылкам..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <select value={categoryFilter} onChange={(event) => handleCategoryChange(event.target.value)}>
+            <option value="">Все категории</option>
+            <option value={GITHUB_CATEGORY_VALUE}>GitHub ({githubCount})</option>
+            {categories.map((item) => (
+              <option key={item.slug} value={item.slug}>
+                {item.name} ({item.count})
+              </option>
+            ))}
+          </select>
+          <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+          <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+          <button className="primary" type="submit">
+            Найти
+          </button>
+          <button
+            className="secondary"
+            type="button"
+            onClick={handleResetFilters}
+            disabled={loading || !hasActiveFilters}
+          >
+            Сбросить
+          </button>
         </form>
       </section>
 
@@ -201,25 +214,34 @@ export default function CatalogPage() {
         <h2 id="catalog-heading" className="visually-hidden">
           Список сервисов
         </h2>
-      {loading && <div className="empty-state">Загрузка каталога...</div>}
-      {error && <div className="error-state">{error}</div>}
-      {!loading && !error && displayedServices.length === 0 && pendingCount > 0 && baseServices.length === 0 && (
-        <div className="empty-state">
-          Сервисы ещё обрабатываются — карточки появятся по мере готовности.
-        </div>
-      )}
-      {!loading && !error && displayedServices.length === 0 && baseServices.length > 0 && (
-        <div className="empty-state">Нет карточек по выбранным тегам. Снимите часть тегов или измените фильтры.</div>
-      )}
-      {!loading && !error && displayedServices.length === 0 && baseServices.length === 0 && pendingCount === 0 && (
-        <div className="empty-state">Каталог пока пуст — скоро здесь появятся находки.</div>
-      )}
+        {loading && <div className="empty-state">Загрузка каталога...</div>}
+        {error && <div className="error-state">{error}</div>}
+        {!loading && !error && totalElements === 0 && pendingCount > 0 && !hasActiveFilters && (
+          <div className="empty-state">Сервисы ещё обрабатываются — карточки появятся по мере готовности.</div>
+        )}
+        {!loading && !error && totalElements === 0 && hasActiveFilters && (
+          <div className="empty-state">Ничего не найдено. Измените фильтры или снимите часть тегов.</div>
+        )}
+        {!loading && !error && totalElements === 0 && !hasActiveFilters && pendingCount === 0 && (
+          <div className="empty-state">Каталог пока пуст — скоро здесь появятся находки.</div>
+        )}
 
-      <section className="cards-grid">
-        {displayedServices.map((service) => (
-          <ServiceCard key={service.id} service={service} />
-        ))}
-      </section>
+        <section className="cards-grid">
+          {services.map((service) => (
+            <ServiceCard key={service.id} service={service} />
+          ))}
+        </section>
+
+        {!loading && !error && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            pageSize={PAGE_SIZE}
+            onPageChange={handlePageChange}
+            disabled={loading}
+          />
+        )}
       </section>
     </>
   );

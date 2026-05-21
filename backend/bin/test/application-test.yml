@@ -11,6 +11,8 @@ app:
   project-root: ..
   openai:
     enabled: false
+  ai-integration:
+    enabled: false
   telegram:
     enabled: false
     user-api:

@@ -66,9 +66,12 @@ export type ServiceFilters = {
   from?: string;
   to?: string;
   hasRepo?: boolean;
+  tags?: string;
   page?: number;
   size?: number;
 };
+
+export type CatalogFilters = Omit<ServiceFilters, 'page' | 'size' | 'tags'>;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
@@ -105,6 +108,21 @@ export const api = {
 
   getCategories() {
     return request<Category[]>('/api/categories');
+  },
+
+  getTags(filters: CatalogFilters = {}) {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value === undefined || value === '') {
+        return;
+      }
+      if (key === 'hasRepo' && value !== true) {
+        return;
+      }
+      params.set(key, String(value));
+    });
+    const query = params.toString();
+    return request<string[]>(`/api/tags${query ? `?${query}` : ''}`);
   },
 
   getStats() {

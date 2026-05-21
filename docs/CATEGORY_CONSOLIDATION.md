@@ -9,13 +9,13 @@
 ## Как работает
 
 1. Берёт все элементы каталога (title, description, tags).
-2. OpenAI предлагает до 20 **широких** категорий по содержимому элементов.
+2. OpenAI (через **noteapp-ai-integration**) предлагает до 20 **широких** категорий по содержимому элементов.
 3. Пакетами переназначает каждый элемент в подходящую категорию (с учётом контента, а не старого названия).
 4. Удаляет категории без элементов.
 
 ## Запуск (production)
 
-1. Убедитесь, что задан `OPENAI_API_KEY`.
+1. Убедитесь, что настроен **AI Integration** (см. `.env.example`) или локально `OPENAI_API_KEY`.
 2. В Coolify временно добавьте:
 
 ```env
@@ -42,4 +42,19 @@ CATEGORY_CONSOLIDATION_ENABLED=false
 
 ## Оценка времени и стоимости
 
-~900 элементов / batch 15 ≈ 60 запросов к OpenAI + 1 запрос на предложение категорий. Время — от нескольких минут.
+~900 элементов / batch 15 ≈ 60 запросов к AI + 1 запрос на предложение категорий. Время — от нескольких минут.
+
+## AI Integration (production)
+
+На сервере OpenAI может быть недоступен по региону. Используйте сервис **noteapp-ai-integration**:
+
+```env
+AI_INTEGRATION_ENABLED=true
+AI_INTEGRATION_BASE_URL=https://your-ai-integration-host
+AI_INTEGRATION_API_KEY=aikey_...
+AI_INTEGRATION_USER_EMAIL=finds@example.com
+AI_INTEGRATION_USER_PASSWORD=...
+OPENAI_ENABLED=false
+```
+
+При первом AI-запросе Finds регистрирует портального пользователя (`POST /api/user/auth/register`) или логинится, если email уже есть. Полученный UUID используется как `userId` в `POST /api/ai/process`. Авторизация AI-вызовов — только заголовок `X-API-Key`.

@@ -34,6 +34,15 @@ app:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-4o-mini}
     enabled: ${OPENAI_ENABLED:true}
+  ai-integration:
+    enabled: ${AI_INTEGRATION_ENABLED:true}
+    base-url: ${AI_INTEGRATION_BASE_URL:}
+    api-key: ${AI_INTEGRATION_API_KEY:}
+    user-email: ${AI_INTEGRATION_USER_EMAIL:}
+    user-password: ${AI_INTEGRATION_USER_PASSWORD:}
+    user-full-name: ${AI_INTEGRATION_USER_FULL_NAME:Finds}
+    external-user-id: ${AI_INTEGRATION_USER_ID:}
+    network-name: ${AI_INTEGRATION_NETWORK_NAME:}
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     enabled: ${TELEGRAM_BOT_ENABLED:true}

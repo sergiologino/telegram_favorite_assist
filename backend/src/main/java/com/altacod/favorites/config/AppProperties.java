@@ -8,6 +8,7 @@ public record AppProperties(
         String projectRoot,
         Sync sync,
         OpenAi openai,
+        AiIntegration aiIntegration,
         Telegram telegram,
         GitHub github,
         CategoryConsolidation categoryConsolidation
@@ -15,6 +16,17 @@ public record AppProperties(
     public record Sync(String cron, int processBatchSize) {}
 
     public record OpenAi(String apiKey, String model, boolean enabled) {}
+
+    public record AiIntegration(
+            boolean enabled,
+            String baseUrl,
+            String apiKey,
+            String userEmail,
+            String userPassword,
+            String userFullName,
+            String externalUserId,
+            String networkName
+    ) {}
 
     public record CategoryConsolidation(boolean enabled, int maxCategories, int batchSize) {}
 

@@ -1,5 +1,6 @@
 package com.altacod.favorites.classification;
 
+import com.altacod.favorites.ai.AiIntegrationClient;
 import com.altacod.favorites.category.CategoryService;
 import com.altacod.favorites.config.AppProperties;
 import com.altacod.favorites.enrichment.LinkMetadata;
@@ -23,17 +24,20 @@ public class OpenAiClassificationService {
 
     private final AppProperties properties;
     private final CategoryService categoryService;
+    private final AiIntegrationClient aiIntegrationClient;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
     public OpenAiClassificationService(
             AppProperties properties,
             CategoryService categoryService,
+            AiIntegrationClient aiIntegrationClient,
             RestClient restClient,
             ObjectMapper objectMapper
     ) {
         this.properties = properties;
         this.categoryService = categoryService;
+        this.aiIntegrationClient = aiIntegrationClient;
         this.restClient = restClient;
         this.objectMapper = objectMapper;
     }
@@ -45,32 +49,7 @@ public class OpenAiClassificationService {
 
         try {
             String prompt = buildPrompt(postText, links);
-            ObjectNode request = objectMapper.createObjectNode();
-            request.put("model", properties.openai().model());
-            request.set("response_format", objectMapper.createObjectNode().put("type", "json_object"));
-            ArrayNode messages = objectMapper.createArrayNode();
-            messages.add(objectMapper.createObjectNode()
-                    .put("role", "system")
-                    .put("content", buildSystemPrompt()));
-            messages.add(objectMapper.createObjectNode()
-                    .put("role", "user")
-                    .put("content", prompt));
-            request.set("messages", messages);
-
-            JsonNode response = restClient.post()
-                    .uri("https://api.openai.com/v1/chat/completions")
-                    .header("Authorization", "Bearer " + properties.openai().apiKey())
-                    .header("Content-Type", "application/json")
-                    .body(request)
-                    .retrieve()
-                    .body(JsonNode.class);
-
-            if (response == null || !response.has("choices") || response.get("choices").isEmpty()) {
-                return fallback(postText, links);
-            }
-
-            String content = response.get("choices").get(0).get("message").get("content").asText();
-            JsonNode parsed = objectMapper.readTree(content);
+            JsonNode parsed = chatJson(buildSystemPrompt(), prompt);
             return new ClassificationResult(
                     text(parsed, "title"),
                     text(parsed, "description"),
@@ -80,7 +59,7 @@ public class OpenAiClassificationService {
                     text(parsed, "repoUrl")
             );
         } catch (Exception ex) {
-            log.warn("OpenAI classification failed, using fallback: {}", ex.getMessage());
+            log.warn("AI classification failed, using fallback: {}", ex.getMessage());
             return fallback(postText, links);
         }
     }
@@ -106,9 +85,42 @@ public class OpenAiClassificationService {
     }
 
     private boolean isEnabled() {
+        return aiIntegrationClient.isEnabled() || isDirectOpenAiEnabled();
+    }
+
+    private boolean isDirectOpenAiEnabled() {
         return properties.openai().enabled()
                 && properties.openai().apiKey() != null
                 && !properties.openai().apiKey().isBlank();
+    }
+
+    private JsonNode chatJson(String systemPrompt, String userPrompt) throws Exception {
+        if (aiIntegrationClient.isEnabled()) {
+            return aiIntegrationClient.chatJson(systemPrompt, userPrompt);
+        }
+
+        ObjectNode request = objectMapper.createObjectNode();
+        request.put("model", properties.openai().model());
+        request.set("response_format", objectMapper.createObjectNode().put("type", "json_object"));
+        ArrayNode messages = objectMapper.createArrayNode();
+        messages.add(objectMapper.createObjectNode().put("role", "system").put("content", systemPrompt));
+        messages.add(objectMapper.createObjectNode().put("role", "user").put("content", userPrompt));
+        request.set("messages", messages);
+
+        JsonNode response = restClient.post()
+                .uri("https://api.openai.com/v1/chat/completions")
+                .header("Authorization", "Bearer " + properties.openai().apiKey())
+                .header("Content-Type", "application/json")
+                .body(request)
+                .retrieve()
+                .body(JsonNode.class);
+
+        if (response == null || !response.has("choices") || response.get("choices").isEmpty()) {
+            throw new IllegalStateException("Empty OpenAI response");
+        }
+
+        String content = response.get("choices").get(0).get("message").get("content").asText();
+        return objectMapper.readTree(content);
     }
 
     private ClassificationResult fallback(String postText, List<LinkMetadata> links) {

@@ -1,5 +1,6 @@
 package com.altacod.favorites.category;
 
+import com.altacod.favorites.ai.AiIntegrationClient;
 import com.altacod.favorites.config.AppProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,16 +24,27 @@ public class OpenAiCategoryService {
     private static final Logger log = LoggerFactory.getLogger(OpenAiCategoryService.class);
 
     private final AppProperties properties;
+    private final AiIntegrationClient aiIntegrationClient;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
-    public OpenAiCategoryService(AppProperties properties, RestClient restClient, ObjectMapper objectMapper) {
+    public OpenAiCategoryService(
+            AppProperties properties,
+            AiIntegrationClient aiIntegrationClient,
+            RestClient restClient,
+            ObjectMapper objectMapper
+    ) {
         this.properties = properties;
+        this.aiIntegrationClient = aiIntegrationClient;
         this.restClient = restClient;
         this.objectMapper = objectMapper;
     }
 
     public boolean isEnabled() {
+        return aiIntegrationClient.isEnabled() || isDirectOpenAiEnabled();
+    }
+
+    private boolean isDirectOpenAiEnabled() {
         return properties.openai().enabled()
                 && properties.openai().apiKey() != null
                 && !properties.openai().apiKey().isBlank();
@@ -91,6 +103,10 @@ public class OpenAiCategoryService {
     }
 
     private JsonNode chatJson(String systemPrompt, String userPrompt) throws Exception {
+        if (aiIntegrationClient.isEnabled()) {
+            return aiIntegrationClient.chatJson(systemPrompt, userPrompt);
+        }
+
         ObjectNode request = objectMapper.createObjectNode();
         request.put("model", properties.openai().model());
         request.set("response_format", objectMapper.createObjectNode().put("type", "json_object"));

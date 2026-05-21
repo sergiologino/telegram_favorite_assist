@@ -17,6 +17,7 @@ class GitHubServiceTest {
                     "..",
                     new AppProperties.Sync("0 0 8,20 * * *", 50),
                     new AppProperties.OpenAi("", "gpt-4o-mini", false),
+                    new AppProperties.AiIntegration(false, "", "", "", "", "Finds", "", ""),
                     new AppProperties.Telegram("", false, new AppProperties.UserApi(
                             false, "", "", "./data/telegram.session", "python", "scripts/sync_saved_messages.py", 500
                     )),
