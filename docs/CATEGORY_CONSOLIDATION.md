@@ -52,9 +52,10 @@ CATEGORY_CONSOLIDATION_ENABLED=false
 AI_INTEGRATION_ENABLED=true
 AI_INTEGRATION_BASE_URL=https://your-ai-integration-host
 AI_INTEGRATION_API_KEY=aikey_...
-AI_INTEGRATION_USER_EMAIL=finds@example.com
-AI_INTEGRATION_USER_PASSWORD=...
+AI_INTEGRATION_ADMIN_USERNAME=admin
+AI_INTEGRATION_ADMIN_PASSWORD=admin
+AI_INTEGRATION_OWNER_EMAIL=admin@example.com
 OPENAI_ENABLED=false
 ```
 
-При первом AI-запросе Finds регистрирует портального пользователя (`POST /api/user/auth/register`) или логинится, если email уже есть. Полученный UUID используется как `userId` в `POST /api/ai/process`. Авторизация AI-вызовов — только заголовок `X-API-Key`.
+При старте Finds (как AltaPens) логинится **админом** интеграции (`POST /api/auth/login`) и привязывает клиента по API-ключу к владельцу (`POST /api/admin/clients/{id}/assign-user`). Для AI-запросов используется только `X-API-Key` + строковый `userId` (по умолчанию `finds-catalog`).

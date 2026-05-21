@@ -21,11 +21,11 @@ public record AppProperties(
             boolean enabled,
             String baseUrl,
             String apiKey,
-            String userEmail,
-            String userPassword,
-            String userFullName,
             String externalUserId,
-            String networkName
+            String networkName,
+            String adminUsername,
+            String adminPassword,
+            String ownerEmail
     ) {}
 
     public record CategoryConsolidation(boolean enabled, int maxCategories, int batchSize) {}

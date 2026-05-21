@@ -38,11 +38,11 @@ app:
     enabled: ${AI_INTEGRATION_ENABLED:true}
     base-url: ${AI_INTEGRATION_BASE_URL:}
     api-key: ${AI_INTEGRATION_API_KEY:}
-    user-email: ${AI_INTEGRATION_USER_EMAIL:}
-    user-password: ${AI_INTEGRATION_USER_PASSWORD:}
-    user-full-name: ${AI_INTEGRATION_USER_FULL_NAME:Finds}
-    external-user-id: ${AI_INTEGRATION_USER_ID:}
+    external-user-id: ${AI_INTEGRATION_USER_ID:finds-catalog}
     network-name: ${AI_INTEGRATION_NETWORK_NAME:}
+    admin-username: ${AI_INTEGRATION_ADMIN_USERNAME:admin}
+    admin-password: ${AI_INTEGRATION_ADMIN_PASSWORD:${AI_INTEGRATION_USER_PASSWORD:}}
+    owner-email: ${AI_INTEGRATION_OWNER_EMAIL:${AI_INTEGRATION_USER_EMAIL:admin@example.com}}
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     enabled: ${TELEGRAM_BOT_ENABLED:true}
