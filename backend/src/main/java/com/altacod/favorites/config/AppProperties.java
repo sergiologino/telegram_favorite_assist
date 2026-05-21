@@ -9,11 +9,14 @@ public record AppProperties(
         Sync sync,
         OpenAi openai,
         Telegram telegram,
-        GitHub github
+        GitHub github,
+        CategoryConsolidation categoryConsolidation
 ) {
     public record Sync(String cron, int processBatchSize) {}
 
     public record OpenAi(String apiKey, String model, boolean enabled) {}
+
+    public record CategoryConsolidation(boolean enabled, int maxCategories, int batchSize) {}
 
     public record Telegram(
             String botToken,

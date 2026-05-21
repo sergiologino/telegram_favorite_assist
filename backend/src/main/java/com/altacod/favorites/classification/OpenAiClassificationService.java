@@ -1,5 +1,6 @@
 package com.altacod.favorites.classification;
 
+import com.altacod.favorites.category.CategoryService;
 import com.altacod.favorites.config.AppProperties;
 import com.altacod.favorites.enrichment.LinkMetadata;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,11 +22,18 @@ public class OpenAiClassificationService {
     private static final Logger log = LoggerFactory.getLogger(OpenAiClassificationService.class);
 
     private final AppProperties properties;
+    private final CategoryService categoryService;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
-    public OpenAiClassificationService(AppProperties properties, RestClient restClient, ObjectMapper objectMapper) {
+    public OpenAiClassificationService(
+            AppProperties properties,
+            CategoryService categoryService,
+            RestClient restClient,
+            ObjectMapper objectMapper
+    ) {
         this.properties = properties;
+        this.categoryService = categoryService;
         this.restClient = restClient;
         this.objectMapper = objectMapper;
     }
@@ -43,12 +51,7 @@ public class OpenAiClassificationService {
             ArrayNode messages = objectMapper.createArrayNode();
             messages.add(objectMapper.createObjectNode()
                     .put("role", "system")
-                    .put("content", """
-                            You classify saved Telegram links about software tools and services.
-                            Return strict JSON with keys:
-                            title, description, category, tags (array of strings), appUrl, repoUrl.
-                            Category should be concise in Russian, e.g. "Транскрибация", "Синтез голоса".
-                            """));
+                    .put("content", buildSystemPrompt()));
             messages.add(objectMapper.createObjectNode()
                     .put("role", "user")
                     .put("content", prompt));
@@ -80,6 +83,26 @@ public class OpenAiClassificationService {
             log.warn("OpenAI classification failed, using fallback: {}", ex.getMessage());
             return fallback(postText, links);
         }
+    }
+
+    private String buildSystemPrompt() {
+        List<String> existingCategories = categoryService.listCategoryNames();
+        StringBuilder builder = new StringBuilder("""
+                You classify saved links about software tools and services.
+                Return strict JSON with keys:
+                title, description, category, tags (array of strings), appUrl, repoUrl.
+                Category must be a broad thematic group in Russian.
+                """);
+        if (existingCategories.isEmpty()) {
+            builder.append("If needed, create a concise new category.\n");
+            return builder.toString();
+        }
+        builder.append("Existing categories (prefer one of these based on item content):\n");
+        for (String category : existingCategories) {
+            builder.append("- ").append(category).append('\n');
+        }
+        builder.append("Create a new broad category only if none of the existing categories fit.\n");
+        return builder.toString();
     }
 
     private boolean isEnabled() {

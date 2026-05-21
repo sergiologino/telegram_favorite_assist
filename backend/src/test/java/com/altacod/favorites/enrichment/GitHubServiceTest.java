@@ -20,7 +20,8 @@ class GitHubServiceTest {
                     new AppProperties.Telegram("", false, new AppProperties.UserApi(
                             false, "", "", "./data/telegram.session", "python", "scripts/sync_saved_messages.py", 500
                     )),
-                    new AppProperties.GitHub("")
+                    new AppProperties.GitHub(""),
+                    new AppProperties.CategoryConsolidation(false, 20, 15)
             )
     );
 

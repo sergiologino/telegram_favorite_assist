@@ -37,4 +37,11 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> 
             WHERE s.repoUrl IS NOT NULL AND s.repoUrl <> ''
             """)
     long countWithRepo();
+
+    @Query("""
+            SELECT s FROM ServiceItem s
+            LEFT JOIN FETCH s.category
+            ORDER BY s.id
+            """)
+    List<ServiceItem> findAllWithCategory();
 }

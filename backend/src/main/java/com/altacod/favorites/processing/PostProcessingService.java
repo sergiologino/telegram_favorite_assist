@@ -2,12 +2,12 @@ package com.altacod.favorites.processing;
 
 import com.altacod.favorites.classification.ClassificationResult;
 import com.altacod.favorites.classification.OpenAiClassificationService;
+import com.altacod.favorites.category.CategoryService;
 import com.altacod.favorites.config.AppProperties;
 import com.altacod.favorites.domain.*;
 import com.altacod.favorites.enrichment.GitHubService;
 import com.altacod.favorites.enrichment.LinkMetadata;
 import com.altacod.favorites.enrichment.OpenGraphService;
-import com.altacod.favorites.util.SlugUtils;
 import com.altacod.favorites.util.UrlExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,27 +27,27 @@ public class PostProcessingService {
 
     private final TelegramPostRepository postRepository;
     private final ServiceItemRepository serviceItemRepository;
-    private final CategoryRepository categoryRepository;
     private final OpenGraphService openGraphService;
     private final GitHubService gitHubService;
     private final OpenAiClassificationService classificationService;
+    private final CategoryService categoryService;
     private final AppProperties properties;
 
     public PostProcessingService(
             TelegramPostRepository postRepository,
             ServiceItemRepository serviceItemRepository,
-            CategoryRepository categoryRepository,
             OpenGraphService openGraphService,
             GitHubService gitHubService,
             OpenAiClassificationService classificationService,
+            CategoryService categoryService,
             AppProperties properties
     ) {
         this.postRepository = postRepository;
         this.serviceItemRepository = serviceItemRepository;
-        this.categoryRepository = categoryRepository;
         this.openGraphService = openGraphService;
         this.gitHubService = gitHubService;
         this.classificationService = classificationService;
+        this.categoryService = categoryService;
         this.properties = properties;
     }
 
@@ -109,7 +109,7 @@ public class PostProcessingService {
         item.setAppUrl(firstNonBlank(classification.appUrl(), primaryLink.url()));
         item.setRepoUrl(firstNonBlank(classification.repoUrl(), primaryLink.repoUrl()));
         item.setGithubStars(primaryLink.githubStars());
-        item.setCategory(resolveCategory(classification.category()));
+        item.setCategory(categoryService.resolveCategory(classification.category()));
         item.setTags(classification.tags().stream().collect(Collectors.joining(", ")));
         item.setPostedAt(post.getPostedAt());
         item.setTelegramPost(post);
@@ -120,17 +120,6 @@ public class PostProcessingService {
         post.setErrorMessage(null);
         postRepository.save(post);
         return PostStatus.DONE;
-    }
-
-    private Category resolveCategory(String categoryName) {
-        String name = (categoryName == null || categoryName.isBlank()) ? "Прочее" : categoryName.trim();
-        String slug = SlugUtils.toSlug(name);
-        return categoryRepository.findBySlug(slug).orElseGet(() -> {
-            Category category = new Category();
-            category.setName(name);
-            category.setSlug(slug);
-            return categoryRepository.save(category);
-        });
     }
 
     private String buildSearchText(ServiceItem item, String postText, List<String> tags) {

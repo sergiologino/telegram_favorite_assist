@@ -47,6 +47,10 @@ app:
       message-limit: ${TELEGRAM_USER_MESSAGE_LIMIT:500}
   github:
     token: ${GITHUB_TOKEN:}
+  category-consolidation:
+    enabled: ${CATEGORY_CONSOLIDATION_ENABLED:false}
+    max-categories: ${CATEGORY_CONSOLIDATION_MAX_CATEGORIES:20}
+    batch-size: ${CATEGORY_CONSOLIDATION_BATCH_SIZE:15}
   site-url: ${SITE_URL:http://localhost:8080}
   site-name: ${SITE_NAME:Finds — полезные сервисы и приложения}
 
