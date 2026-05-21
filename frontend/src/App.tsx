@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
+import YandexMetrika from './analytics/YandexMetrika';
 import Layout from './components/Layout';
 import CatalogPage from './pages/CatalogPage';
 import ImportPage from './pages/ImportPage';
@@ -8,6 +9,7 @@ import { QueueProcessingProvider } from './hooks/useQueueProcessing';
 export default function App() {
   return (
     <QueueProcessingProvider>
+      <YandexMetrika />
       <Layout>
         <Routes>
           <Route path="/" element={<CatalogPage />} />

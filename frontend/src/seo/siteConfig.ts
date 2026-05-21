@@ -7,6 +7,8 @@ export const SITE_DESCRIPTION =
 
 export const SITE_LOCALE = 'ru_RU';
 
+export const ALTACOD_HOME_URL = 'https://altacod.com';
+
 export const SITE_HOME_URL = 'https://finds.altacod.com';
 
 export function getSiteUrl(): string {

@@ -69,10 +69,12 @@ SYNC_PROCESS_BATCH_SIZE=50
 
 ```env
 VITE_SITE_URL=https://finds.altacod.com
+VITE_YANDEX_METRIKA_ID=109312391
 ```
 
 `SITE_URL` — для `robots.txt` и `sitemap.xml` на backend.  
-`VITE_SITE_URL` — для canonical и Open Graph в SPA (задаётся **на этапе сборки** образа).
+`VITE_SITE_URL` — для canonical и Open Graph в SPA (задаётся **на этапе сборки** образа).  
+`VITE_YANDEX_METRIKA_ID` — ID счётчика Яндекс.Метрики (тоже на этапе сборки).
 
 `TELEGRAM_USER_API_ENABLED=false` — в образе **нет Python/Telethon**. User session sync в контейнере не работает без доработки образа. Используйте **экспорт JSON** и **Bot API**.
 

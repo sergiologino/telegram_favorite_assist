@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -65,17 +66,23 @@ public class TelegramBotService {
 
         while (true) {
             final long requestOffset = nextOffset;
-            JsonNode response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .scheme("https")
-                            .host("api.telegram.org")
-                            .path("/bot" + properties.telegram().botToken() + "/getUpdates")
-                            .queryParam("offset", requestOffset)
-                            .queryParam("timeout", 0)
-                            .queryParam("allowed_updates", "[\"message\"]")
-                            .build())
-                    .retrieve()
-                    .body(JsonNode.class);
+            JsonNode response;
+            try {
+                response = restClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .scheme("https")
+                                .host("api.telegram.org")
+                                .path("/bot" + properties.telegram().botToken() + "/getUpdates")
+                                .queryParam("offset", requestOffset)
+                                .queryParam("timeout", 0)
+                                .queryParam("allowed_updates", "[\"message\"]")
+                                .build())
+                        .retrieve()
+                        .body(JsonNode.class);
+            } catch (RestClientException ex) {
+                log.error("Telegram bot sync request failed: {}", ex.getMessage());
+                return new BotSyncResult(imported, skipped, ex.getMessage());
+            }
 
             if (response == null || !response.path("ok").asBoolean(false)) {
                 String error = response == null ? "empty response" : response.path("description").asText("unknown error");

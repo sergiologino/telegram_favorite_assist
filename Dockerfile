@@ -2,7 +2,9 @@
 
 FROM node:20-alpine AS frontend-build
 ARG VITE_SITE_URL=http://localhost:8080
+ARG VITE_YANDEX_METRIKA_ID=109312391
 ENV VITE_SITE_URL=$VITE_SITE_URL
+ENV VITE_YANDEX_METRIKA_ID=$VITE_YANDEX_METRIKA_ID
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci

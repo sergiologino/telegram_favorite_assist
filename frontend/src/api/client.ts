@@ -71,7 +71,12 @@ export type ServiceFilters = {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init);
+  const headers = new Headers(init?.headers);
+  if (!headers.has('Content-Type') && !(init?.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(path, { ...init, headers });
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
   }
