@@ -7,11 +7,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -116,55 +117,92 @@ public class AiIntegrationClient {
         String password = ai.userPassword();
         String fullName = StringUtils.hasText(ai.userFullName()) ? ai.userFullName().trim() : "Finds";
 
+        Optional<UUID> userId = tryPortalLogin(baseUrl, email, password);
+        if (userId.isPresent()) {
+            log.info("AI integration: portal user logged in ({})", email);
+            return userId.get();
+        }
+
+        userId = tryPortalRegister(baseUrl, email, password, fullName);
+        if (userId.isPresent()) {
+            log.info("AI integration: portal user registered ({})", email);
+            return userId.get();
+        }
+
+        userId = tryPortalLogin(baseUrl, email, password);
+        if (userId.isPresent()) {
+            log.info("AI integration: portal user logged in after register conflict ({})", email);
+            return userId.get();
+        }
+
+        throw new IllegalStateException(
+                "Portal user auth failed for " + email
+                        + ": could not register or login. Check AI_INTEGRATION_USER_EMAIL/PASSWORD."
+        );
+    }
+
+    private Optional<UUID> tryPortalLogin(String baseUrl, String email, String password) {
+        ObjectNode loginBody = objectMapper.createObjectNode();
+        loginBody.put("email", email);
+        loginBody.put("password", password);
+
+        try {
+            JsonNode loginResponse = restClient.post()
+                    .uri(baseUrl + "/api/user/auth/login")
+                    .header("Content-Type", "application/json")
+                    .body(loginBody)
+                    .retrieve()
+                    .body(JsonNode.class);
+            return extractUserId(loginResponse);
+        } catch (RestClientResponseException ex) {
+            log.debug("Portal login failed ({}): {}", ex.getStatusCode().value(), responseError(ex));
+            return Optional.empty();
+        }
+    }
+
+    private Optional<UUID> tryPortalRegister(String baseUrl, String email, String password, String fullName) {
         ObjectNode registerBody = objectMapper.createObjectNode();
         registerBody.put("email", email);
         registerBody.put("password", password);
         registerBody.put("repeatPassword", password);
         registerBody.put("fullName", fullName);
 
-        JsonNode registerResponse = restClient.post()
-                .uri(baseUrl + "/api/user/auth/register")
-                .header("Content-Type", "application/json")
-                .body(registerBody)
-                .exchange((request, response) -> {
-                    JsonNode body = objectMapper.readTree(response.getBody());
-                    if (response.getStatusCode().is2xxSuccessful()) {
-                        return body;
-                    }
-                    if (response.getStatusCode().value() == 400
-                            && body.path("error").asText("").contains("уже существует")) {
-                        return null;
-                    }
-                    throw new IllegalStateException(
-                            "Portal user registration failed: " + body.path("error").asText("unknown error")
-                    );
-                });
-
-        if (registerResponse != null && registerResponse.hasNonNull("userId")) {
-            return UUID.fromString(registerResponse.get("userId").asText());
+        try {
+            JsonNode registerResponse = restClient.post()
+                    .uri(baseUrl + "/api/user/auth/register")
+                    .header("Content-Type", "application/json")
+                    .body(registerBody)
+                    .retrieve()
+                    .body(JsonNode.class);
+            return extractUserId(registerResponse);
+        } catch (RestClientResponseException ex) {
+            log.debug("Portal register failed ({}): {}", ex.getStatusCode().value(), responseError(ex));
+            return Optional.empty();
         }
+    }
 
-        ObjectNode loginBody = objectMapper.createObjectNode();
-        loginBody.put("email", email);
-        loginBody.put("password", password);
-
-        JsonNode loginResponse = restClient.post()
-                .uri(baseUrl + "/api/user/auth/login")
-                .header("Content-Type", "application/json")
-                .body(loginBody)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, response) -> {
-                    JsonNode body = objectMapper.readTree(response.getBody());
-                    throw new IllegalStateException(
-                            "Portal user login failed: " + body.path("error").asText("unknown error")
-                    );
-                })
-                .body(JsonNode.class);
-
-        if (loginResponse == null || !loginResponse.hasNonNull("userId")) {
-            throw new IllegalStateException("Portal user login returned empty userId");
+    private Optional<UUID> extractUserId(JsonNode response) {
+        if (response != null && response.hasNonNull("userId")) {
+            return Optional.of(UUID.fromString(response.get("userId").asText()));
         }
-        return UUID.fromString(loginResponse.get("userId").asText());
+        return Optional.empty();
+    }
+
+    private String responseError(RestClientResponseException ex) {
+        String body = ex.getResponseBodyAsString();
+        if (!StringUtils.hasText(body)) {
+            return ex.getMessage();
+        }
+        try {
+            JsonNode parsed = objectMapper.readTree(body);
+            String error = parsed.path("error").asText("");
+            if (StringUtils.hasText(error)) {
+                return error;
+            }
+        } catch (Exception ignored) {
+            // keep raw body
+        }
+        return body;
     }
 
     JsonNode parseChatJsonResponse(JsonNode integrationResponse) throws Exception {
